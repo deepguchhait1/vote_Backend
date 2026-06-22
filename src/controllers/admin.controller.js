@@ -54,7 +54,11 @@ export const adminSign = async (req, res) => {
 
 export const adminLogout = async (req, res) => {
   try {
-    res.clearCookie("admin");
+    res.clearCookie("admin", {
+      httpOnly: true,
+      secure: true, 
+      sameSite: "none", 
+    });
     res.status(200).json({ msg: "Logout Successfull !!" });
   } catch (error) {
     res.status(500).json({ msg: "Internal Server Error" });
