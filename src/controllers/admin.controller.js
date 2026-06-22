@@ -20,7 +20,12 @@ export const adminLogin = async (req, res) => {
     const token = jwt.sign({ admin: emailEX._id }, process.env.JWT_KEY, {
       expiresIn: "7d",
     });
-    res.cookie("admin", token);
+    res.cookie("admin", token, {
+      httpOnly: true,
+      secure: true, // Must be true for sameSite: 'none' to work
+      sameSite: "none", // Allows cross-site cookie transmission
+      maxAge: 24 * 60 * 60 * 1000, // example: 1 day
+    });
     res.status(200).json({ data: emailEX });
   } catch (error) {
     res.status(500).json({ msg: "Internal Server Error" });
@@ -83,10 +88,8 @@ export const getAgents = async (req, res) => {
 // Get admin profile
 export const getAdminProfile = async (req, res) => {
   try {
-    
     const admin = await Admin.findById(req.admin._id).select("-password");
     res.status(200).json({ data: admin });
-
   } catch (error) {
     res.status(500).json({ msg: "Internal Server Error" });
     console.log("Error in getAdminProfile controller :", error);
@@ -105,7 +108,7 @@ export const updateAdminProfile = async (req, res) => {
     const updatedAdmin = await Admin.findByIdAndUpdate(
       req.admin._id,
       updateData,
-      { new: true }
+      { new: true },
     ).select("-password");
 
     res

@@ -12,17 +12,22 @@ export const userSignup = async (req, res) => {
     if (!phone)
       return res.status(300).json({ msg: "Phone Number is Required" });
     if (!dob) return res.status(300).json({ msg: "Date of Birth is Required" });
-    
+
     // Check if user is at least 18 years old
     const birthDate = new Date(dob);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
     if (age < 18) {
-      return res.status(300).json({ msg: "You must be at least 18 years old to register" });
+      return res
+        .status(300)
+        .json({ msg: "You must be at least 18 years old to register" });
     }
 
     if (!password) return res.status(300).json({ msg: "Password is Required" });
@@ -69,7 +74,12 @@ export const userLogin = async (req, res) => {
     const token = jwt.sign({ id: emailEX._id }, process.env.JWT_KEY, {
       expiresIn: "7d",
     });
-    res.cookie("user", token);
+    res.cookie("user", token, {
+      httpOnly: true,
+      secure: true, 
+      sameSite: "none",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
     res.status(200).json({ data: emailEX });
   } catch (error) {
     res.status(500).json({ msg: "Internal Server Error" });
@@ -150,13 +160,13 @@ export const updateUserProfile = async (req, res) => {
     if (name) updateData.name = name;
     if (phone) updateData.phone = phone;
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user._id,
-      updateData,
-      { new: true }
-    ).select("-password");
+    const updatedUser = await User.findByIdAndUpdate(req.user._id, updateData, {
+      new: true,
+    }).select("-password");
 
-    res.status(200).json({ msg: "Profile updated successfully", data: updatedUser });
+    res
+      .status(200)
+      .json({ msg: "Profile updated successfully", data: updatedUser });
   } catch (error) {
     res.status(500).json({ msg: "Internal Server Error" });
     console.log("Error in updateUserProfile controller :", error);
@@ -166,16 +176,18 @@ export const updateUserProfile = async (req, res) => {
 // Get vote status
 export const getVoteStatus = async (req, res) => {
   try {
-    const vote = await Count.findOne({ vote_id: req.user._id })
-      .populate('agent_id', 'name party_name');
-    
+    const vote = await Count.findOne({ vote_id: req.user._id }).populate(
+      "agent_id",
+      "name party_name",
+    );
+
     if (!vote) {
       return res.status(200).json({ hasVoted: false });
     }
 
-    res.status(200).json({ 
-      hasVoted: true, 
-      votedFor: vote.agent_id 
+    res.status(200).json({
+      hasVoted: true,
+      votedFor: vote.agent_id,
     });
   } catch (error) {
     res.status(500).json({ msg: "Internal Server Error" });
@@ -190,19 +202,19 @@ export const getResults = async (req, res) => {
       {
         $group: {
           _id: "$agent_id",
-          voteCount: { $sum: 1 }
-        }
+          voteCount: { $sum: 1 },
+        },
       },
       {
         $lookup: {
           from: "agents",
           localField: "_id",
           foreignField: "_id",
-          as: "candidateInfo"
-        }
+          as: "candidateInfo",
+        },
       },
       {
-        $unwind: "$candidateInfo"
+        $unwind: "$candidateInfo",
       },
       {
         $project: {
@@ -210,19 +222,19 @@ export const getResults = async (req, res) => {
           voteCount: 1,
           name: "$candidateInfo.name",
           party_name: "$candidateInfo.party_name",
-          image: "$candidateInfo.image"
-        }
+          image: "$candidateInfo.image",
+        },
       },
       {
-        $sort: { voteCount: -1 }
-      }
+        $sort: { voteCount: -1 },
+      },
     ]);
 
     const totalVotes = await Count.countDocuments();
 
-    res.status(200).json({ 
+    res.status(200).json({
       data: results,
-      totalVotes 
+      totalVotes,
     });
   } catch (error) {
     res.status(500).json({ msg: "Internal Server Error" });
